@@ -6,9 +6,15 @@ output:
 theme: sandstone
 ---
 
+# Jayne Morais - FPCC2 (Mestrado 2019)
+
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(here)
+#install.packages("GGally")
+library(ggridges)
+library(GGally)
 source(here::here("code/lib.R"))
 theme_set(theme_bw())
 
@@ -75,6 +81,154 @@ por_time = estimativas_raw %>%
 
 ## Qual a relação entre as estimativas e horas reais tomadas na empresa como um todo e em diferentes categorias de tarefa?
 
+    O Gráfico abaixo representa a relação entre as horas estimadas e as horas trabalhadas na empresa como um todo.
+  
+    Para a visualização de dados, utilizou-se uma escala logarítma em ambos os eixos, para examinar as correlações o mais próximo de um aspecto de linha reta  entre ln(y) e ln(x), pois os mesmos se encontravam bastante enviesados.
+
+    O cálculo dos coeficientes mostra que se trata de uma relação consideravelmente não linear (Pearson = 0.31) e com correlação forte (Spearman = 0.82 | Kendall = 0.69).
+
+    Ainda foi traçada uma reta a qual permite visualizar o comportamento da relação entre os dados, que se dá com uma linha com um pequena curvatura com uma correlação aparentemente positiva. 
+
+```{r}
+relacao_estimativa_hora = estimativas %>% 
+  summarise(pearson = cor(HoursEstimate, HoursActual, method = "pearson"), 
+            spearman = cor(HoursEstimate, HoursActual, method = "spearman"), 
+            kendall = cor(HoursEstimate, HoursActual, method = "kendall") )
+relacao_estimativa_hora
+
+#ggpairs(data=estimativas, columns=c(6:7), ggplot2::aes(colour=Category))
+
+relacao_estimativa_hora = estimativas %>% 
+  ggplot(aes(x = (HoursEstimate / 1e3), y = (HoursActual  / 1e3), color=Category)) + 
+  geom_point() + 
+  geom_rug(alpha = .7, color = "#EF2917", sides = "l") + 
+  geom_smooth(aes(x = (HoursEstimate / 1e3), y = (HoursActual  / 1e3)), method="loess", color="red") +
+  #scale_x_discrete(breaks=0:100) +
+  #theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Relação entre horas estimadas e trabalhadas",
+    subtitle = "Geral",
+    y = "Horas Trabalhadas",
+    x = "Horas Estimadas" 
+  ) +
+  scale_y_log10() +
+  scale_x_log10()
+
+relacao_estimativa_hora
+```
+
+    Ainda para uma segunda análise, foram retirados os pontos extremos (para a variável 'Horas  Estimadas' com limite de valor 600, e para a variável 'Horas Trabalhadas' com limite 1000) e as escalas logarítmas, a fim de analisar a linearidade do comportamento. Feito isto, ainda assim, conforme pode ser visualizado pelo gráfico abaixo, a linha apresenta uma certa curvatura.
+    
+```{r}
+
+relacao_estimativa_hora = estimativas %>% 
+  filter(HoursEstimate <= 600, HoursActual <= 1000 ) %>%
+  ggplot(aes(x = (HoursEstimate), y = (HoursActual), color=Category)) + 
+  geom_point() + 
+  geom_rug(alpha = .7, color = "#EF2917", sides = "l") + 
+  geom_smooth(aes(x = (HoursEstimate), y = (HoursActual)), method="loess", color="red") +
+  #scale_x_discrete(breaks=0:100) +
+  #theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Relação entre horas estimadas e trabalhadas",
+    subtitle = "Geral",
+    y = "Horas Trabalhadas",
+    x = "Horas Estimadas" 
+  ) 
+
+relacao_estimativa_hora
+```
+
+    Os Gráficos abaixo representas a relação entre as horas estimadas e as horas trabalhadas na empresa por diferentes categorias de tarefa.
+    Estes apresentam características semelhantes às análises anteriores.
+    Entre os tipos de categoria de tarefas, através da análise dos gráficos e dos coeficientes, os tipos de atividades que apresentam uma correlação mais forte são Development e Management.
+    
+
+```{r}
+
+relacao_estimativa_hora = estimativas %>% 
+      group_by(Category)  %>%
+  summarise(pearson = cor(HoursEstimate, HoursActual, method = "pearson"), 
+            spearman = cor(HoursEstimate, HoursActual, method = "spearman"), 
+            kendall = cor(HoursEstimate, HoursActual, method = "kendall") )
+relacao_estimativa_hora
+
+relacao_estimativa_hora = estimativas %>% 
+  ggplot(aes(x = (HoursEstimate / 1e3), y = (HoursActual / 1e3), color=Category)) + 
+  geom_point() + 
+  geom_rug(alpha = .7, color = "#EF2917", sides = "l") + 
+  # scale_x_discrete(breaks=0:100) +
+  # theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  geom_smooth(aes(x = (HoursEstimate / 1e3), y = (HoursActual  / 1e3)), method="loess", color="red") +
+  labs(
+    title = "Relação entre horas estimadas e trabalhadas",
+    subtitle = "Por Categoria",
+    y = "Horas Trabalhadas",
+    x = "Horas Estimadas" 
+  ) +
+  scale_y_log10() +
+  scale_x_log10() +
+  facet_wrap(~Category)
+
+relacao_estimativa_hora
+
+
+
+```
+
 
 ## Equipes com mais desenvolvedores produzem estimativas com mais ou menos erro que equipes menores? 
 
+    Ao analisar o gráfico e os cálculos dos coeficientes, pode-se afirmar que não há relação direta entre o número de desenvolvedores (devs) por equipe e a produção de erros de estimativas.
+    Tem-se uma correlação quase neutra entre os dados, pois os coeficientes apontam um valor próximo a zero. 
+    O formato da relação entre as variáveis é arbitrário.
+
+```{r}
+relacao_qtdesevolvedor_erro = por_time %>% 
+  summarise(pearson = cor(devs, erro_medio_abs, method = "pearson"), 
+            spearman = cor(devs, erro_medio_abs, method = "spearman"), 
+            kendall = cor(devs, erro_medio_abs, method = "kendall") )
+relacao_qtdesevolvedor_erro
+
+relacao_qtdesevolvedor_erro = por_time %>% 
+  group_by(ProjectCode) %>%
+  ggplot(aes(x = (devs), y = (erro_medio_abs))) + 
+  geom_point(color = "#EF8A17") + 
+  geom_rug(alpha = .7, color = "#EF2917", sides = "l") + 
+  geom_smooth(aes(x = (devs), y = (erro_medio_abs)), method="loess", color="red") +
+  labs(
+    title = "Relação entre a quantidade de devs e erro médio de estimativa",
+    subtitle = "Geral",
+    x = "Nº de Desenvolvedores",
+    y = "Erro Médio" 
+  ) +
+  scale_y_continuous(breaks = seq(from = -100, to = 100, by = 10)) +
+  scale_x_continuous(breaks = seq(from = -100, to = 100, by = 1))
+  
+relacao_qtdesevolvedor_erro
+
+```
+
+    Na tentativa de melhorar a visualização e aproximar a um formato linear, foi aplicado uma escala logarítma e retirado os pontos extremos (erro médio absoluto abaixo de 70), mas ainda assim, esta apresenta um formato arbitrário.
+    
+```{r}
+
+relacao_qtdesevolvedor_erro = por_time %>% 
+  filter(erro_medio_abs <= 70) %>%
+  group_by(ProjectCode) %>%
+  ggplot(aes(x = (devs), y = (erro_medio_abs))) + 
+  geom_point(color = "#EF8A17") + 
+  geom_rug(alpha = .7, color = "#EF2917", sides = "l") + 
+  geom_smooth(aes(x = (devs), y = (erro_medio_abs)), method="loess", color="red") +
+  labs(
+    title = "Relação entre a quantidade de devs e erro médio de estimativa",
+    subtitle = "Geral",
+    x = "Nº de Desenvolvedores",
+    y = "Erro Médio" 
+  ) +
+  scale_y_log10() +
+  scale_x_log10()
+  
+relacao_qtdesevolvedor_erro
+
+```
